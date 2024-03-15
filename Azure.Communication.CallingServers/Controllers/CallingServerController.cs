@@ -1,6 +1,7 @@
-﻿using Azure.Communication.CallingServer;
+﻿using Azure.Communication.CallAutomation;
+using Azure.Communication.CallingServer;
 using Microsoft.AspNetCore.Mvc;
-using CreateCallOptions = Azure.Communication.CallAutomation.CreateCallOptions;
+using CreateCallOptions = Azure.Communication.CallingServer.CreateCallOptions;
 
 namespace Azure.Communication.CallingServers.Controllers
 {
@@ -11,10 +12,10 @@ namespace Azure.Communication.CallingServers.Controllers
         private readonly CallingServerClient _client;
         private readonly IConfiguration _configuration;
         private readonly CallAutomationClient _callAutomationClient;
-        public CallingServerController(IConfiguration configuration, CallAutomationClient callAutomationClient)
+        public CallingServerController(IConfiguration configuration)
         {
             _configuration = configuration;
-            _callAutomationClient = callAutomationClient;
+            _callAutomationClient = new CallAutomationClient(_configuration["ACSResourceConnectionString"]);
             _client = new CallingServerClient(_configuration["ACSResourceConnectionString"]);
         }
 
@@ -61,9 +62,27 @@ namespace Azure.Communication.CallingServers.Controllers
 
                 var callConnection = await _client.CreateCallConnectionAsync(caller, new List<CommunicationIdentifier>() { target }, createCallOption);
                 var getCallConnection = _client.GetCallConnection(callConnection.Value.CallConnectionId);
-                var a = await _callAutomationClient.CreateCallAsync
 
                 return Ok(getCallConnection);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("createCallWithCallAutomation")]
+        public async Task<IActionResult> CreateCallWithCallAutomation()
+        {
+            try
+            {
+                var caller = new PhoneNumberIdentifier("+18332638155");
+                var target = new PhoneNumberIdentifier("+918688023395");
+
+                var callInvite = new CallInvite(caller, target);
+
+                var result = await _callAutomationClient.CreateCallAsync(callInvite, new Uri(_configuration["CallbackUriHost"]));
+                return Ok(result);
             }
             catch (Exception ex)
             {
